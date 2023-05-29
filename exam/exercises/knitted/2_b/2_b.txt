@@ -1,0 +1,3 @@
+Textbook:
+1. Example 2.12 and Example 2.13
+2. Solve exercises 2.23 and 2.41

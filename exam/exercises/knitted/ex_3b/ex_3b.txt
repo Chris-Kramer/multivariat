@@ -1,0 +1,6 @@
+Check MVN of the stiffness data provided in Table 4.3. This includes:
+1. Check normality for each of the four attributes
+2. Check normality for each pair of the two attributes (out of four)
+3. Check normality for the entire four attributes
+4. if time permit, try out Box-Cox transformation.
+Get it prepared before 23/03 TE

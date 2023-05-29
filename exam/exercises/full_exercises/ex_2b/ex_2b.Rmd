@@ -1,0 +1,86 @@
+---
+title: "ex 2b"
+author: "Christoffer Mondrup Kramer"
+date: "2023-05-14"
+output: html_document
+---
+
+# Ex 2b
+
+## 2.23 p. 143
+Verify the relationships $V^{1/2} \quad p \quad V^{1/2} = \Sigma$ and $p = (V^{1/2})^{-1} \quad \Sigma \quad (V^{1/2})^{-1}$ 
+So here is the deal
+
+p = population correlation matrix  
+$V^{1/2}$ = Population standard deviation matrix  
+$\Sigma$ = Population co-variance matrix  
+  
+
+This basically shows that if we know V and P we can obtain $\Sigma$, and if we know $\Sigma$ we can obtain p.  
+How to prove it:  
+$V^{1/2}pV^{1/2} = \Sigma$  
+$pV^{1/2} = (V^{1/2})^{-1}\Sigma$  
+$p = (V^{1/2})^{-1}\Sigma(V^{1/2})^{-1}$
+
+## 2.41 p. 147
+You are given the random vector [$X_1$, $X_2$, $X_3$, $X_4$] with mean vector $\mu'x$ equal to:
+
+```{r}
+mu <- c(3, 2, -2, 0)
+print(mu)
+```
+
+
+and variance-covariance matrix:
+```{r}
+x_1 <- c(3, 0, 0, 0)
+x_2 <- c(0, 3, 0, 0)
+x_3 <- c(0, 0, 3, 0)
+x_4 <- c(0, 0, 0, 3)
+co_var_matrix <- data.frame(x_1,
+                            x_2,
+                            x_3,
+                            x_4)
+print(co_var_matrix)
+```
+
+Let *A* equal
+
+```{r}
+col_1 <- c(1, 1, 1)
+col_2 <- c(-1, 1, 1)
+col_3 <- c(0, -2, 1)
+col_4 <- c(0, 0, -3)
+A <- data.frame(col_1,
+                col_2,
+                col_3,
+                col_4)
+
+print(A)
+```
+
+### 2.41 a)
+Find E(AX), the mean of AX.
+Since we already have the mean vector mu, we can just multiply A with the mean vector to get the expected outcome of A times our data frame which gives the expected value of AX:
+```{r}
+print(data.matrix(A) %*% mu)
+```
+
+### 2.41 b) 
+Find cov(AX), the variances and covariances of AX.
+
+This is essentially just scaling the co variance matrix, which has the following formula: $Z = A \Sigma A^T$ found here https://math.stackexchange.com/questions/1184523/scaling-a-covariance-matrix or at page 76 upper page number / 114 lower page number
+
+```{r}
+print(data.matrix(A) %*% data.matrix(co_var_matrix) %*% t(data.matrix(A)))
+```
+
+### 2.41 c)
+Which pairs of linear combinations have zero covariances? 
+1, 2  
+2, 1  
+1, 3  
+3, 1  
+2, 3  
+3, 2  
+All of the above have zero covariances since there is zero at. said another way, since it is only the diagonal, which is not zero, then they all have zero covariance, ie. they have variance individually, but they do not display any related pattern in their variance.

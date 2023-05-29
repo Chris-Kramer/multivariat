@@ -1,0 +1,35 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+dat_data <- read.table("T11-6.dat")
+
+```
+
+
+```{r}
+colMeans((dat_data)) # kolonne mean (average)
+```
+```{r}
+cov(dat_data)  # Covarians mellem attributter
+```
+```{r}
+cor(dat_data) # Korrelationer mellem attributter
+```
+
+```{r}
+mean(dat_data$V1) # en colonne
+```
+
+
+
+```{r}
+x <- seq(0, .3, 0.1)
+x
+```
+
+

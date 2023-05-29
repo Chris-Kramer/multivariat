@@ -1,0 +1,3 @@
+Access normality for radiation data (door open case) as given in t4-5.dat. Using methods introduced in the lecture on 08/03.
+The solution should include the following: Q-Q plot for original data + hypothesis test; create Fig 4.12 but for the door open data;
+find a proper power transformation using Box-Cox method. Q-Q plot for the transformed data (with step 3) + hypothesis test

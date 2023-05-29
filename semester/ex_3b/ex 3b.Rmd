@@ -1,0 +1,483 @@
+---
+title: "ex 3b"
+author: "Christoffer Mondrup Kramer"
+date: "2023-05-20"
+output: html_document
+---
+# Exervcise 3b- Access normality for stiffness  data in table 4.3 (p. 186)
+
+Let us read the data
+```{r}
+df <- read.table("T4-3.dat", header = FALSE)
+df
+```
+
+## Check normality for each of the four attributes 
+
+```{r}
+library(MASS)
+
+get_best_lambda <- function(data_vector) {
+    # Transform data
+    # Make box cox plot on our data
+    df_box_cox<- boxcox(data_vector~1,lambda=seq(-2, 2, 1/10)) # Can also be seq(-.5, 1.5,.01) 
+    df_box_cox
+    
+    # Get best lambda
+    max_lambda <- df_box_cox$x[which.max(df_box_cox$y)]
+    print(paste("The best lambda is ", max_lambda))
+    return(max_lambda)
+}
+
+box_cox_transformation <- function(data_vector){
+
+  lambda <- get_best_lambda(data_vector)
+  if (lambda == 0){
+    transformed_vector <- log(data_vector)
+  }
+  
+  else {
+  transformed_vector <- ( (data_vector^lambda) - 1)/lambda
+  }
+  
+  return(transformed_vector)
+}
+
+
+test_norm <- function(data_vector, signigicance = 0.05, transform_data = FALSE) {
+  # You can chose the following significance levels
+  # 0.01
+  # 0.05
+  # 0.10
+  
+  if (signigicance == 0.01){
+    signigicance_col <- 2
+  }
+    
+  else if (signigicance == 0.05){
+    signigicance_col <- 3
+  }
+  
+  else if (signigicance == 0.1){
+    signigicance_col <- 4
+  }
+    
+  
+  # ----- QQ plot -----
+  qq <- qqnorm(data_vector, main = "Original Data QQ plot")
+  qqline(data_vector)
+  
+  print(paste("Length of data is ", length(data_vector)))
+  # ----- Hypothesis test ------
+  # Create Testing table
+  n <- c(5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 75, 100, 150, 200, 300)
+  one <- c(0.8299, 0.8801, 0.9126, 0.9269, 0.9410,
+        0.9479, 0.9538, 0.9599, 0.9632, 0.9671,
+        0.9695, 0.9720, 0.9771, 0.9822, 0.9879, 0.9905, 0.9935)
+  
+  five <- c(0.8788, 0.9198, 0.9389,
+        0.9508, 0.9591, 0.9652,
+        0.9682, 0.9726, 0.9749,
+        0.9768, 0.9787, 0.9801,
+        0.9838, 0.9873, 0.9913, 0.9931, 0.9953)
+  
+  ten <- c(0.9032, 0.9351, 0.9503,
+        0.9604, 0.9665, 0.9715,
+        0.9740, 0.9771, 0.9792,
+        0.9809, 0.9822, 0.9836,
+        0.9866, 0.9895, 0.9928, 0.9942, 0.9960)
+  testing_tbl <- data.frame(
+  n,
+  one,
+  five,
+  ten
+  )
+  
+  # Find index of testing (n)
+  sample_size <- length(data_vector)
+  i <- 1
+  prev_value = NaN
+  for (n in testing_tbl$n){
+    
+    if (sample_size > testing_tbl$n[length(testing_tbl$n)]){
+      i <- length(testing_tbl$n)
+      break
+    }
+    
+    if (n == sample_size){
+      exact_sample_size <- TRUE
+      break
+    }
+    
+    else if ( n > sample_size & prev_value < sample_size){
+      break
+    }
+    i <- i + 1
+    prev_value <- n 
+  }
+  
+  print(testing_tbl[(i - 1) : i, ])
+  # ----- Normal -------
+  cor_coef <- cor(qq$x, qq$y)
+  normality = FALSE
+  if (cor_coef > testing_tbl[i, signigicance_col]){
+    print(paste("With a correlation coefficient of ", cor_coef, "The data is normal within significance levels of", signigicance))
+    normality = TRUE
+    return(normality)  
+  }
+  
+  
+  # ----- Not normal -----
+  else {
+    
+    if (transform_data) {
+      print(paste("With a correlation coefficient of ", cor_coef,
+            "The data is not normal within significance levels of", signigicance, "Transforming data ... "))
+    
+      # Transform data
+      z_vector <- box_cox_transformation(data_vector)
+      
+      # QQ plot on transformed data
+      qqz <- qqnorm(z_vector, main = "Transformed Data QQ plot")
+      qqline(z_vector)
+      
+      # Hypothesis test on transformed data
+      z_cor_coef <- cor(qqz$x, qqz$y)
+      if (z_cor_coef > testing_tbl[i, signigicance_col]){
+        print(paste("With a correlation coefficient of ", z_cor_coef,
+                    "The data is normal within significance levels of", signigicance,
+                    "For the box cox transformed data"))
+        normality = TRUE
+        return(normality)
+      }
+      else {
+          print(paste("With a correlation coefficient of ", z_cor_coef,
+                "The data is normal within significance levels of", signigicance,
+                "For the box cox transformed data"))
+      }
+    }
+    else {
+      print(paste("With a correlation coefficient of ", cor_coef,
+      "The data is not normal within significance levels of", signigicance))
+    }
+  }
+}
+```
+
+
+
+Let us check each attribute
+
+```{r}
+for (i in colnames(df)){
+  print(i)
+  test_norm(df[[i]], signigicance = 0.01)
+}
+```
+```{r}
+for (i in colnames(df)){
+  print(i)
+  test_norm(df[[i]], signigicance = 0.05)
+}
+```
+
+```{r}
+for (i in colnames(df)){
+  print(i)
+  test_norm(df[[i]], signigicance = 0.10)
+}
+```
+
+**significance 0.01:**  
+  - x1: Normal  
+  - x2: Normal  
+  - x3: normal  
+  - x4: normal  
+  - x5: NOT normal  
+  
+**significance: 0.05:**  
+  - x1: NOT Normal  
+  - x2: NOT Normal  
+  - x3: NOT normal  
+  - x4: normal  
+  - x5: NOT normal  
+  
+**significance: 0.10:**  
+  - x1: NOT Normal  
+  - x2: NOT Normal  
+  - x3: NOT normal  
+  - x4: normal  
+  - x5: NOT normal  
+  
+  
+No matter what significance level there is always at least one attribute which is not normally distributed.  
+Maybe we should transform it all? Let's try:
+
+
+```{r}
+for (i in colnames(df)){
+  print(i)
+  test_norm(df[,i], signigicance = 0.01, transform_data = TRUE)
+}
+```
+
+```{r}
+for (i in colnames(df)){
+  print(i)
+  test_norm(df[[i]], signigicance = 0.05, transform_data = TRUE)
+}
+```
+
+```{r}
+for (i in colnames(df)){
+  print(i)
+  test_norm(df[[i]], signigicance = 0.10, transform_data = TRUE)
+}
+```
+Overview of transformed data:  
+**significance 0.01:**  
+  - x1: Normal  
+  - x2: Normal  
+  - x3: normal  
+  - x4: normal  
+  - x5: normal (when transformed)  
+  
+**significance: 0.05:**  
+  - x1: Normal (when transformed)  
+  - x2: Normal (when transformed)   
+  - x3: Normal (when transformed)   
+  - x4: Normal  
+  - x5: Normal (when transformed)   
+  
+**significance: 0.10:**  
+  - x1: Normal (when transformed)  
+  - x2: Normal (when transformed)   
+  - x3: Normal (when transformed)   
+  - x4: Normal  
+  - x5: Normal (when transformed) 
+  
+
+
+## Check normality for each pair of the two attributes  
+
+To do this we first have a function which simulates a chi squared n points on a distribution n_simulations times (often 10000), and compares it with the theoretical distribution and then calculates the correlation coeeficiant. It then Takes the highest correlation coefficient and returns it. This will then be the critical value that our correlation coeefficient needs to be higher than in order to follow a chi-sqauared distribution, which indicates that we have a bivariate normal distribution.  
+
+```{r}
+
+FindcrikChi <- function(n=30, p=2, alpha= 0.05, n_simulations=10000){
+	
+	cricvec <- rep(0, n_simulations)  #vector for the rQ result collection#
+	
+	for(i in 1:n_simulations){
+		#iteration to estimate rQ#
+		numvec <- rchisq(n, p)  #generate a data set of size n, degree of freedom=p#
+		d <- sort(numvec)
+		q <- qchisq((1:n-0.5)/n, p)
+		cricvec[i] <- cor(d,q)		
+	}
+	
+	scricvec <- sort(cricvec)
+	cN <- ceiling(n_simulations* alpha) #to be on the safe side I use ceiling instead of floor(), take the 'worst' alpha*N cor as rQ, everything lower than that is deemed as rejection#
+	cricvalue <- scricvec[cN]
+	result <- list(cN, cricvalue, scricvec)
+	return(result[[2]])
+}
+
+
+```
+
+This function takes two variables, the simulated correlation coefficient from preivouslky and a aplha/significance value and creates a qqplot. It then calculates mahalanobis distance for the data points and the correlation coefficient between the mahalanobis distances and a theoretical chi squared distribution. It then compares this correlation coefficient with the simulated coefficient and checks if it is higher. If it is higher, this data follows a chi-squared distribution, which indicates, that it is normally distributed. It also calculate how large a percent of the points that are within in alpha, that is how many percent of the points are within the 1 - alpha contours, and shows what would be expected. If it is not crazy far from the expected, the correlation coeefficient is a usefull measure. 
+
+
+```{r}
+multi_var_norm <- function(df, sim_cor, alpha, name, remove_outlier = FALSE, n_outliers = 1) {
+  
+  # Data and parameters
+  n <- nrow(df) # observations
+  p <- ncol(df) # number of variables
+  D2 <- mahalanobis(df,
+                    center  = colMeans(df),
+                    cov = cov(df)) # generalized squared distance
+  
+  # Removes outliers if necessary
+  if(remove_outlier == TRUE){
+    
+    i = 0
+    while (i < n_outliers){
+    #This is where we remove outliers. This will most likely change the correlation value and the % number of points in the contour. 
+    D2 <- D2[-which.max(D2)]
+    i = i + 1
+    }
+  } 
+  
+  
+  # Chi square qq plot 
+  chi_plot <- qqplot(qchisq(ppoints(n, a = .5), df = p), D2,
+                     plot.it = F) # chi square plot values.
+  
+  my_cor <- cor(chi_plot$x, chi_plot$y) # correlation value
+  critical_value <- qchisq(p = alpha,
+                           df = p,
+                           lower.tail = F) # calculate critical value
+  
+  # Proportion of points below alpha value
+  prop_within_contour <- round(length(D2[D2 <= critical_value]) / length(D2),4) #
+  
+  
+  quantiles <- quantile(D2)
+  quantile_25 <- quantiles[2]
+  quantile_50 <- quantiles[3]
+  quantile_75 <- quantiles[4]
+  
+  plot(chi_plot, #From here and downwards it is only how you want the plot to look. 
+       ylab = 'Mahalanobis distances',
+       xlab = 'Chi-square quantiles',
+       main = paste0(name, ' alpha = ',alpha)) # plot chi square plot
+  
+  # Q line
+  y <- rchisq(500, df = p)
+  qqline(y, distribution = function(n) qchisq(n, df = p), prob = c(0.1, 0.6))
+  
+  # Lines for quantiles
+  abline(h = quantile_50, lty = 2) # 50% quantiles becayse book p. 187
+  abline(h = critical_value, lty = 2, col = "red") # Below Critical value
+  
+  if(my_cor > sim_cor){
+    conclusion <- "Normally distributed!"
+  }
+  
+  else {
+    conclusion <- "NOT normally distributed!"
+  }
+  legend("topleft", 
+         paste0("r = ", round(my_cor,4), "\n",
+                "Simulated r Value: ", sim_cor, "\n",
+                "% Below critical range: ", prop_within_contour, "\n",
+                "Expected if normal: ", 1-alpha, "\n",
+                conclusion),
+         cex = 0.75,
+         bty = "n") # add legend to plot
+  }
+```
+
+We then create a function which test each pair of variables for normality
+
+```{r}
+
+bivar_pairs <- function(data_frame, significance = 0.05, remove_outliers = FALSE, n_outliers = 1, n_simulations = 10000) {
+
+sim_cor <- FindcrikChi(n = length(data_frame[,1]),
+                          p = 2,
+                          alpha = significance,
+                          n_simulations)
+
+prev <- c()
+i = 1
+for (col_name in colnames(data_frame)){
+
+  j = 1
+  for (col_name_inner in colnames(data_frame)){
+    
+    if (i == j){
+      j = j + 1
+      next
+    }
+    
+    else if (j %in% prev){
+      j = j + 1
+      next
+    }
+    
+    else{
+      multi_var_norm(df = data_frame[, c(i, j)],
+                 sim_cor = sim_cor,
+                 alpha = significance,
+                 name = paste0("X", i, " & ", "x", j, " "),
+                 remove_outlier = remove_outliers,
+                 n_outliers = n_outliers)
+      
+    }
+    j = j + 1
+  }
+  prev <- append(prev, i)
+  i = i + 1
+  }
+}
+
+bivar_pairs(df, significance = 0.05)
+```
+This gives the following result:  
+  - X1 and X2: Normal  
+  - x1 and x3: Normal  
+  - X1 and x4: Not normal  
+  - x1 and x5: Not normal
+  - x2 and x3: Normal  
+  - x2 and x4: Not normal  
+  - x2 and x5: Not normal  
+  - x3 and x4: Normal distributed  
+  - x3 and x5: Not normal distributed  
+  - x4 and x5: Not normal distributed 
+
+
+Let us try, by removing outliers and see how this changes it: 
+```{r}
+bivar_pairs(df, significance = 0.05, remove_outliers = TRUE, n_outliers = 2)
+```
+Interestingtly all the data is normally distributed if we just remove the two outliers.  
+Let us now try to do it with all attributes.  
+
+## Normality of all attributes  
+
+```{r}
+sim_cor <- FindcrikChi(n = length(df[,1]),
+                          p = ncol(df),
+                          alpha = 0.05,
+                          n_simulations = 10000)
+
+multi_var_norm(df, sim_cor, 0.05, "X1, X2, X3, X4, X5")
+```
+
+The whole data set is not normally distributed, which fits the theorem that states, that if a subset is not normally distributed then the whole data set will not be normally distributed.  
+
+What if we remove two outliers again? 
+
+```{r}
+sim_cor <- FindcrikChi(n = length(df[,1]),
+                          p = ncol(df),
+                          alpha = 0.05,
+                          n_simulations = 10000)
+
+multi_var_norm(df, sim_cor, 0.05, "X1, X2, X3, X4, X5", remove_outlier = TRUE, n_outliers = 2)
+```
+Then the data set is suddenly normally distributed. Let's try and transform the dataset.  
+
+## Transformed multivariate dataset 
+Each column is transformed with box_cox transformation
+```{r}
+
+transformed_df <- df
+i = 1
+for (col_name in colnames(df)) {
+  print(paste0("X", i))
+  transformed_df[, i] <- box_cox_transformation(df[, i])
+  i = i + 1
+}
+
+print(transformed_df)
+print(df)
+```
+
+Let's see how we perform with the transformed data:  
+
+```{r}
+sim_cor <- FindcrikChi(n = length(transformed_df[,1]),
+                          p = ncol(transformed_df),
+                          alpha = 0.05,
+                          n_simulations = 10000)
+multi_var_norm(transformed_df, sim_cor, alpha = 0.05, name ="Transformed X1, X2, X3, X4, X5")
+```
+
+
+
+Now the data is normally distributed and it even has all the excted points within the critical value.
+

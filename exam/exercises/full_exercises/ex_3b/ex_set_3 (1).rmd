@@ -1,0 +1,472 @@
+---
+title: "Ex_set_3"
+author: "Rasmus Lauge Hansen"
+date: '2023-03-17'
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+
+Importing the ST514 package
+
+
+```{r}
+#library(st514)
+```
+
+
+Importing the data
+
+```{r}
+data("T4-3.dat")
+```
+
+Printing the data. Radiation closed
+
+```{r}
+tbl
+```
+
+Changing the column names
+
+```{r}
+colnames(tbl) = c("rad")
+```
+
+
+```{r}
+tbl
+```
+
+Watching the distribution
+
+```{r}
+hist(tbl$rad)
+```
+
+Making the QQplot to discover whether or not it is normal. 
+
+qqline is the theoretical normal distribution.
+
+We do that with QQnorm.
+
+```{r}
+test <- qqnorm(tbl$rad, main = "Radiation Door Open")
+
+qqline(tbl)
+```
+
+
+Doing correlation to assess the hypothesis of normality. 
+
+```{r}
+cor(test$x, test$y)
+```
+
+Since this is not above the values of table 4.2, one rejects the hypotethesis of normally distributed data. The critical values can be found in the table. For .10 it is = .9771 which makes us deny the null hypothesis of normality. 
+
+```{r}
+library(MASS)
+```
+
+The Box and Cox method is family of power transformations which decides what type of transformation is suitable for the data. For this we use the MASS package.
+
+(Trial and error with the sequences)
+
+
+```{r}
+boxcox_transf <- boxcox(tbl$rad~1, lambda = seq(-.5, 1.5,.01))
+```
+
+We use flag_id_x to determine where it is at the highest of log-likelihood in the box cox transformation. We then use that to find the optimal lambda for transforming the data. 
+
+We transform this way according to 4-34. 
+
+```{r}
+
+#finding the optimal transformation variables 
+
+flag_id_x <- which(boxcox_transf$y==max(boxcox_transf$y))
+
+optimal_lambda <- boxcox_transf$x[flag_id_x] #0.26
+
+vec_for_trans <- tbl$rad #assigning the data to a vector
+
+trans_vec <- (vec_for_trans^optimal_lambda-1)/optimal_lambda #according to 4-34. 
+```
+
+Is it more normally distributed now?
+
+```{r}
+hist(trans_vec)
+```
+
+Let us check via a QQ-plot. Our null hypothesis is that the data is normally distributed.
+
+
+```{r}
+transf_rad <- qqnorm(trans_vec)
+
+qqline(trans_vec)
+```
+
+Look at that! Normally distribute by looking at table 4.2.
+
+```{r}
+cor(transf_rad$x, transf_rad$y)
+```
+
+Looking at table 4.2 the data is now normally distributed after transformation. Remember data transformation is not data manipulation. One can transform the data to make it easier to work with.
+
+A rough explanation is that if you do something on the entire dataset it can be called a transformation, but if you do something to individual variables that is data manipulation. 
+
+
+Exercise set 3b
+
+Importing the data
+```{r}
+
+tbl<- read.table("T4-3.dat", header = FALSE)
+
+```
+
+
+Four measurements of stiffness dataset. 
+
+```{r}
+x1 <- tbl$V1
+
+x2 <- tbl$V2
+
+x3 <- tbl$V3
+
+x4 <- tbl$V4
+
+```
+
+We create a function so that we can just use the variable name.
+
+```{r}
+qq_function <- function(variable, variable_name){
+  qq_plot <- qqnorm(variable, main=paste0("QQ-plot for ", variable_name))
+  qqline(variable)
+  cor_qq  <- cor(qq_plot$x, qq_plot$y)
+  paste0("Cor for ", variable_name," ", cor_qq)
+
+}
+```
+
+```{r}
+qq_function(x1, "x1")
+qq_function(x2, "x2")
+qq_function(x3, "x3")
+qq_function(x4, "x4")
+```
+
+
+
+
+```{r}
+
+par(mfrow=c(2,2))
+
+qq_function(x1, "x1")
+qq_function(x2, "x2")
+qq_function(x3, "x3")
+qq_function(x4, "x4")
+
+```
+
+Check for bivariate normality. 
+
+The Mahalanobis distance can be used to assess normality by comparing the distance of each observation from the center of the distribution, also known as the centroid, to the overall spread of the data. If the data is multivariate normal, the Mahalanobis distance will follow a Chi-Squared distribution with degrees of freedom equal to the number of dimensions.
+
+We create a new function to check for bivariate normality. 
+
+Here we check our outliers which is also an argument in the function. We use the Malahanobis distance to find outliers in the dataset. 
+
+We use the chi-squared distribution to find the critical value to gather how many of the points are outliers. 
+
+To find the critical value one uses the qchisq function. This can be where:
+
+```{r}
+FindcrikChi <- function(n=n0, p=p0, alpha=alpha1, N=N0){
+	
+	cricvec <- rep(0, N)  #vector for the rQ result collection#
+	
+	for(i in 1:N){
+		#iteration to estimate rQ#
+		numvec <- rchisq(n, p)  #generate a data set of size n, degree of freedom=p#
+		d <- sort(numvec)
+		q <- qchisq((1:n-0.5)/n, p)
+		cricvec[i] <- cor(d,q)		
+	}
+	
+	scricvec <- sort(cricvec)
+	cN <- ceiling(N* alpha) #to be on the safe side I use ceiling instead of floor(), take the 'worst' alpha*N cor as rQ, everything lower than that is deemed as rejection#
+	cricvalue <- scricvec[cN]
+	result <- list(cN, cricvalue, scricvec)
+  return(result)}
+```
+
+
+p = given alpha value
+df = no of cols 
+
+A chi squared qq plot is used due to us assessing the normality for bivariate data. This is also the case for multivariate data. 
+
+It is expected that the variable 'prop_within_contour' is above the variable 1-alpha (Expected if normal) if it satisfies the nullhypothesis of normality.
+
+The R-value (correlation in the chi-squared plot) in the script should be compared to the value that you get from FindCrikChi (Jing's script). 
+
+
+```{r}
+bivar_norm <- function(x1, x2, alpha, name, remove_outlier = FALSE) {
+  df <- data.frame(x1,x2) # create dataframe
+  n <- nrow(df) # observations
+  p <- ncol(df) # number of variables
+  D2 <- mahalanobis(df,
+                    center  = colMeans(df),
+                    cov = cov(df)) # generalized squared distance
+  if(remove_outlier == TRUE){ #This is where we remove outliers. This will most likely change the correlation value and the % number of points in the contour. 
+    D2 <- D2[-which.max(D2)]
+  } #From here and down it is creating the plot 
+  chi_plot <- qqplot(qchisq(ppoints(n, a = .5), df = p), D2,
+                     plot.it = F) # chi square plot values.
+                      # ppoints: j-1/2/n = 1:length(x)-1/2/length(x)
+  my_cor <- cor(chi_plot$x, chi_plot$y) # correlation value
+  critical_value <- qchisq(p = alpha,
+                           df = p,
+                           lower.tail = F) # calculate critical value
+  prop_within_contour <- round(length(D2[D2 <= critical_value]) / length(D2),4) #
+  plot(chi_plot, #From here and downwards it is only how you want the plot to look. 
+       ylab = 'Mahalanobis distances',
+       xlab = 'Chi-square quantiles',
+       main = paste0(name, ' alpha = ',alpha)) # plot chi square plot
+  legend("topleft", 
+         paste0("r = ", round(my_cor,4), "\n",
+                    "% D2 <= c^2: ", prop_within_contour, "\n",
+                    "Expected if normal: ", 1-alpha),
+         cex = 0.75,
+         bty = "n") # add legend to plot
+  }
+```
+
+this is also applicable for the multivariate normality. (almost the same script, but the multivariate takes more variables)
+
+```{r}
+bivar_norm(x1,x2, .05, "x1 & x2", F)
+```
+
+
+% D2 <= c^2: how many points that are in the contour in terms of assessing normality. 
+```{r}
+par(mfrow=c(2,3))
+bivar_norm(x1,x2, .5, "x1 & x2", F)
+bivar_norm(x1,x3, .05, "x1 & x3", F)
+bivar_norm(x1,x4, .05, "x1 & x4", F)
+bivar_norm(x2,x3, .05, "x2 & x3", F)
+bivar_norm(x2,x4, .05, "x2 & x4", F)
+bivar_norm(x3,x4, .05, "x3 & x4", F)
+```
+
+You can use Jing's script to assess normality from pairs. 
+
+
+n0 <- 30 # Number of observations
+
+p0 <- 2 # Number of variables
+
+alpha1 <- 0.05  #upper quantile/significant level
+
+N0 <- 1000 #iteration 1000 times, you could increase it, in fact should do it for different N until increase N does not change the critical value significantly
+
+```{r}
+
+FindcrikChi <- function(n=n0, p=p0, alpha=alpha1, N=N0){
+	
+	cricvec <- rep(0, N)  #vector for the rQ result collection#
+	
+	for(i in 1:N){
+		#iteration to estimate rQ#
+		numvec <- rchisq(n, p)  #generate a data set of size n, degree of freedom=p#
+		d <- sort(numvec)
+		q <- qchisq((1:n-0.5)/n, p)
+		cricvec[i] <- cor(d,q)		
+	}
+	
+	scricvec <- sort(cricvec)
+	cN <- ceiling(N* alpha) #to be on the safe side I use ceiling instead of floor(), take the 'worst' alpha*N cor as rQ, everything lower than that is deemed as rejection#
+	cricvalue <- scricvec[cN]
+	result <- list(cN, cricvalue, scricvec)
+	return(result)
+}
+
+```
+
+
+
+```{r}
+results <- FindcrikChi(30, 2, .05, 1000)
+results[[2]]
+```
+Which means none of the nullhyphothesis about normality is accepted. 
+
+
+Check for multivariate normality. 
+
+This function finds the critical value. It is a function made, by Jing which is also available on itslearning. This function simulates a dataset 1000 times and then calculates the critical value. The significance value should be above that to accept the H0 of multivariate normality. This is done by comparing the R-value to the critical value from Jing's script. 
+
+We do the same here as we did in the last one. Just with more variables. 
+
+```{r}
+chi_square_all <- function(x1,x2,x3,x4,alpha,name, remove_outlier = FALSE){
+  df <- data.frame(x1,x2,x3,x4) #create dataframe
+  n <- nrow(df) # observations
+  p <- ncol(df) # number of variables
+  D2 <- mahalanobis(df,
+                    center  = colMeans(df),
+                    cov = cov(df)) # generalized squared distance
+  if(remove_outlier == TRUE){ #This is where we remove outliers. This will most likely change the correlation value and the % number of points in the contour. 
+    D2 <- D2[-which.max(D2)]
+  } #From here and down it is creating the plot 
+  chi_plot <- qqplot(qchisq(ppoints(n, a = .5), df = p), D2,
+                     plot.it = F) # chi square plot values.
+                      # ppoints: j-1/2/n = 1:length(x)-1/2/length(x)
+  my_cor <- cor(chi_plot$x, chi_plot$y) # correlation value
+  critical_value <- qchisq(p = alpha,
+                           df = p,
+                           lower.tail = F) # calculate critical value
+  prop_within_contour <- round(length(D2[D2 <= critical_value]) / length(D2),4) #
+  plot(chi_plot, #From here and downwards it is only how you want the plot to look. 
+       ylab = 'Mahalanobis distances',
+       xlab = 'Chi-square quantiles',
+       main = paste0(name, ' alpha = ',alpha)) # plot chi square plot
+  legend("topleft", 
+         paste0("r = ", round(my_cor,4), "\n",
+                    "% D2 <= c^2: ", prop_within_contour, "\n",
+                    "Expected if normal: ", 1-alpha),
+         cex = 0.75,
+         bty = "n") # add legend to plot
+  }
+```
+
+```{r}
+chi_square_all(x1,x2,x3,x4,.05, "All variables", F)
+```
+
+You can also use Jings script where one finds the critical value by simulating a dataset many times.
+
+```{r}
+result_all <- FindcrikChi(30,4,.05,20000)
+result_all[[2]]
+```
+
+Transformation done in the same way as exercise set 3a (Box-cox-transformation). 
+
+The goal is to find the optimal lambda and transform as seen in the book. 
+
+```{r}
+boxcox_transf1 <- boxcox(x1~1, lambda = seq(-1.5, 1.5,.01))
+boxcox_transf2 <- boxcox(x2~1, lambda = seq(-1.5, 1.5,.01))
+boxcox_transf3 <- boxcox(x3~1, lambda = seq(-1.5, 1.5,.01))
+boxcox_transf4 <- boxcox(x4~1, lambda = seq(-1.5, 1.5,.01))
+```
+
+```{r}
+
+#finding the optimal transformation variables 
+
+flag_id_x1 <- which(boxcox_transf1$y==max(boxcox_transf1$y))
+
+optimal_lambda1 <- boxcox_transf1$x[flag_id_x1]
+
+vec_for_trans1 <- x1 #assigning the data to a vector
+
+trans_vec1 <- (vec_for_trans1^optimal_lambda1-1)/optimal_lambda1 #according to 4-34.
+
+flag_id_x2 <- which(boxcox_transf2$y==max(boxcox_transf2$y))
+
+optimal_lambda2 <- boxcox_transf2$x[flag_id_x2]
+
+vec_for_trans2 <- x2 #assigning the data to a vector
+
+trans_vec2 <- (vec_for_trans2^optimal_lambda2-1)/optimal_lambda2 #according to 4-34.
+
+flag_id_x3 <- which(boxcox_transf3$y==max(boxcox_transf3$y))
+
+optimal_lambda3 <- boxcox_transf3$x[flag_id_x3]
+
+vec_for_trans3 <- x3 #assigning the data to a vector
+
+trans_vec3 <- (vec_for_trans3^optimal_lambda3-1)/optimal_lambda3 #according to 4-34.
+
+flag_id_x4 <- which(boxcox_transf4$y==max(boxcox_transf4$y))
+
+optimal_lambda4 <- boxcox_transf4$x[flag_id_x4]
+
+vec_for_trans4 <- x4 #assigning the data to a vector
+
+trans_vec4 <- (vec_for_trans4^optimal_lambda4-1)/optimal_lambda4 #according to 4-34.
+
+
+```
+
+```{r}
+
+par(mfrow=c(2,2))
+
+qq_function(trans_vec1, "trans_vec1")
+qq_function(trans_vec2, "trans_vec2")
+qq_function(trans_vec3, "trans_vec3")
+qq_function(trans_vec4, "trans_vec4")
+
+```
+All distributions are now normal. 
+
+Check for bivariate normality. 
+
+R-value has to be above the critical value found from Jing's script. That can be found further up. 
+
+```{r}
+bivar_norm(trans_vec1,trans_vec2, .05, "trans1 & trans2", F)
+```
+
+```{r}
+results <- FindcrikChi(30, 2, .05, 10000)
+results[[2]]
+```
+
+
+
+% D2 <= c^2: % of points that are within the contour.  
+```{r}
+par(mfrow=c(2,3))
+bivar_norm(trans_vec1,trans_vec2, .05, "trans1 & trans2", F)
+bivar_norm(trans_vec1,trans_vec3, .05, "trans1 & trans3", F)
+bivar_norm(trans_vec1,trans_vec4, .05, "trans1 & trans4", F)
+bivar_norm(trans_vec2,trans_vec3, .05, "trans2 & trans3", F)
+bivar_norm(trans_vec2,trans_vec4, .05, "trans2 & trans4", F)
+bivar_norm(trans_vec3,trans_vec4, .05, "trans3 & trans4", F)
+```
+All of them are closer to normality or satisfy normality now. 
+
+
+Check for multivariate normality. 
+
+REMEMBER IF THE ENTIRE DATASET IS NORMALLY DISTRIBUTED, that means that each individual variable is normally distributed. It should be noted that even though multivariate normality can be satisfied it highly depends on the dimensions of the variables (how many observations etc.).
+
+This function finds the critical value. It is a function made, by Jing which is also available on itslearning. This function simulates a dataset 1000 times and then calculates the critical value. The value of significance should be above that to accept the H0 of multivariate normality.
+
+```{r}
+results <- FindcrikChi(30, 4, .05, 10000)
+results[[2]]
+```
+
+```{r}
+chi_square_all(trans_vec1,trans_vec2,trans_vec3,trans_vec4,.05, "All variables", F)
+```
+
+Even after transformation data is not necessarily normally distributed. But it's getting closer. 
